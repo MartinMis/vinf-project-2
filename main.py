@@ -283,7 +283,7 @@ def main() -> None:
     logging.info("Showing gathered team information:")
     team_info.show()
 
-    merged_dataframe = merged_dataframe.join(team_info, merged_dataframe["series"] == team_info["title"], "left")
+    merged_dataframe = merged_dataframe.join(team_info, merged_dataframe["current_team"] == team_info["title"], "left")
     merged_dataframe = merged_dataframe.fillna("")
     merged_dataframe = merged_dataframe.drop("text")
     merged_dataframe = merged_dataframe.drop("title")

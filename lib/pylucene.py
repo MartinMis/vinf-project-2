@@ -5,14 +5,15 @@ import os
 import re
 from pathlib import Path
 from java.io import File
-from java.lang import Integer, Long, Double
+from java.lang import Integer, Long, Double, String
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.document import Document, Field, TextField, StringField, IntPoint, StoredField, DoublePoint
 from org.apache.lucene.index import IndexWriter, IndexWriterConfig
 from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.queryparser.classic import QueryParser
-from org.apache.lucene.search import IndexSearcher, BooleanQuery, BooleanClause
+from org.apache.lucene.queryparser.classic import QueryParser, MultiFieldQueryParser
+from org.apache.lucene.search import IndexSearcher, BooleanQuery, BooleanClause, BoostQuery
 from org.apache.lucene.index import DirectoryReader
+from java.util import HashMap
 
 
 logger = logging.getLogger("pylucene")
@@ -207,12 +208,43 @@ def search_index(index_str_path: str, query: str):
     logger.debug("Min search: %s", min_search)
     logger.debug("Max search: %s", max_search)
 
+    fields_and_weights = {
+        "content": 1.0,
+        "driver_name": 3.0,
+        "nationality": 3.0,
+        "series": 3.0,
+        "age": 3.0,
+        "birthday": 3.0,
+        "hometown": 3.0,
+        "races_started": 3.0,
+        "races_entered": 3.0,
+        "wins": 3.0,
+        "podiums": 3.0,
+        "pole_positios": 3.0,
+        "fastest_laps": 3.0,
+        "race_win_percentage": 3.0,
+        "podium_percentage": 3.0,
+        "driverdb_score": 2.0,
+        "current_team": 3.0,
+        "all_teams": 2.0,
+        "car_number": 1.0,
+        "championships": 2.0,
+        "driver_bio": 2.0,
+        "team_description": 2.0,
+        "series_description": 2.0,
+    }
+
     builder = BooleanQuery.Builder()
 
     if text_search:
-        query_parser = QueryParser("content", analyzer)
-        parsed_query = query_parser.parse(query)
-        builder.add(parsed_query, BooleanClause.Occur.MUST)
+        text_search_builder = BooleanQuery.Builder()
+        for field, weight in fields_and_weights.items():
+            query_parser = QueryParser(field, analyzer)
+            parsed_query = query_parser.parse(text_search)
+            boosted_query = BoostQuery(parsed_query, float(weight))
+            text_search_builder.add(boosted_query, BooleanClause.Occur.SHOULD)
+        text_query = text_search_builder.build()
+        builder.add(text_query, BooleanClause.Occur.MUST)
 
     for field, value in arg_search:
         arg_query_parser = QueryParser(field, analyzer)
@@ -221,18 +253,18 @@ def search_index(index_str_path: str, query: str):
 
     for field, value in min_search:
         if "percentage" not in field:
-            min_query = IntPoint.newRangeQuerry(field, int(value), Integer.MAX_VALUE)
+            min_query = IntPoint.newRangeQuery(field, int(value), Integer.MAX_VALUE)
             builder.add(min_query, BooleanClause.Occur.MUST)
         else:
-            min_query = DoublePoint.newRangeQuerry(field, float(value), Double.MAX_VALUE)
+            min_query = DoublePoint.newRangeQuery(field, float(value), Double.MAX_VALUE)
             builder.add(min_query, BooleanClause.Occur.MUST)
 
     for field, value in max_search:
         if "percentage" not in field:
-            min_query = IntPoint.newRangeQuerry(field, Integer.MIN_VALUE, int(value))
+            min_query = IntPoint.newRangeQuery(field, Integer.MIN_VALUE, int(value))
             builder.add(min_query, BooleanClause.Occur.MUST)
         else:
-            min_query = DoublePoint.newRangeQuerry(field, Double.MIN_VALUE, float(value))
+            min_query = DoublePoint.newRangeQuery(field, Double.MIN_VALUE, float(value))
             builder.add(min_query, BooleanClause.Occur.MUST)
 
     combined_query = builder.build()
@@ -248,7 +280,7 @@ def search_index(index_str_path: str, query: str):
 if __name__ == "__main__":
     create_index(
         "/Users/martin/Development/school_projects/vinf/project-2/data/index", 
-        "/Users/martin/Development/school_projects/vinf/project-2/data/complete_data.tsv.bak.tsv",
+        "/Users/martin/Development/school_projects/vinf/project-2/data/complete_data.tsv",
     )
-    print(parse_query_args("John Doe @current_team=red_bull ^age=20 $age=50"))
-    search_index("/Users/martin/Development/school_projects/vinf/project-2/data/index", "Verstappen")
+    #print(parse_query_args("John Doe @current_team=red_bull ^age=20 $age=50"))
+    #search_index("/Users/martin/Development/school_projects/vinf/project-2/data/index", "Verstappen")
