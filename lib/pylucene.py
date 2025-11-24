@@ -14,6 +14,11 @@ from org.apache.lucene.queryparser.classic import QueryParser, MultiFieldQueryPa
 from org.apache.lucene.search import IndexSearcher, BooleanQuery, BooleanClause, BoostQuery
 from org.apache.lucene.index import DirectoryReader
 from java.util import HashMap
+from dataclasses import dataclass
+
+@dataclass
+class FieldsAndWeights:
+    content: float = 1.0
 
 
 logger = logging.getLogger("pylucene")
