@@ -7,14 +7,28 @@ from pathlib import Path
 from java.io import File
 from java.lang import Integer, Long, Double, String
 from org.apache.lucene.analysis.standard import StandardAnalyzer
-from org.apache.lucene.document import Document, Field, TextField, StringField, IntPoint, StoredField, DoublePoint
+from org.apache.lucene.document import (
+    Document,
+    Field,
+    TextField,
+    StringField,
+    IntPoint,
+    StoredField,
+    DoublePoint,
+)
 from org.apache.lucene.index import IndexWriter, IndexWriterConfig
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.queryparser.classic import QueryParser, MultiFieldQueryParser
-from org.apache.lucene.search import IndexSearcher, BooleanQuery, BooleanClause, BoostQuery
+from org.apache.lucene.search import (
+    IndexSearcher,
+    BooleanQuery,
+    BooleanClause,
+    BoostQuery,
+)
 from org.apache.lucene.index import DirectoryReader
 from java.util import HashMap
 from dataclasses import dataclass
+
 
 @dataclass
 class FieldsAndWeights:
@@ -48,6 +62,7 @@ def extract_content_from_html(file_path_str: str) -> str:
         content = html_file.read()
         return remove_tags(content)
 
+
 def parse_query_args(query: str):
     argument_pattern = r"@(\w+)=(\w+)"
     max_num_pattern = r"\$(\w+)=(\w+)"
@@ -75,8 +90,6 @@ def create_index(index_str_path: str, data_tsv_path: str):
 
     config = IndexWriterConfig(analyzer)
     writer = IndexWriter(index_store, config)
-
-    
 
     data_tsv = Path(data_tsv_path)
     try:
@@ -115,8 +128,12 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 podiums = 0 if podiums == "" else int(podiums)
                 pole_positions = 0 if pole_positions == "" else int(pole_positions)
                 fastest_laps = 0 if fastest_laps == "" else int(fastest_laps)
-                race_win_percentage = 0.0 if race_win_percentage == "" else float(race_win_percentage)
-                podium_percentage = 0.0 if podium_percentage == "" else float(podium_percentage)
+                race_win_percentage = (
+                    0.0 if race_win_percentage == "" else float(race_win_percentage)
+                )
+                podium_percentage = (
+                    0.0 if podium_percentage == "" else float(podium_percentage)
+                )
                 championships = 0 if championships == "" else int(championships)
 
                 document = Document()
@@ -124,9 +141,17 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 if filename != "":
                     logger.debug("Extracting HTML content for the index.")
                     file_path_str = filename.split(":")[1]
-                    document.add(TextField("content", extract_content_from_html(file_path_str), Field.Store.NO))
+                    document.add(
+                        TextField(
+                            "content",
+                            extract_content_from_html(file_path_str),
+                            Field.Store.NO,
+                        )
+                    )
                 else:
-                    logger.warning(f"No related HTML content found for driver {driver_name}!")
+                    logger.warning(
+                        f"No related HTML content found for driver {driver_name}!"
+                    )
 
                 logger.debug("Creating new document.")
 
@@ -139,7 +164,7 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 # age
                 document.add(IntPoint("age", age))
                 document.add(StoredField("age", age))
-                # birthday 
+                # birthday
                 # TODO Make this work like a number
                 document.add(TextField("birthday", birthday, Field.Store.YES))
                 # hometown
@@ -170,7 +195,9 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 document.add(StoredField("podium_percentage", podium_percentage))
                 # driverdb score
                 # TODO: Make this a number
-                document.add(TextField("driverdb_score", driverdb_score, Field.Store.YES))
+                document.add(
+                    TextField("driverdb_score", driverdb_score, Field.Store.YES)
+                )
                 # current team
                 document.add(TextField("current_team", current_team, Field.Store.YES))
                 # all teams
@@ -183,10 +210,13 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 # driver bio
                 document.add(TextField("driver_bio", driver_bio, Field.Store.YES))
                 # series description
-                document.add(TextField("series_description", series_description, Field.Store.YES))
+                document.add(
+                    TextField("series_description", series_description, Field.Store.YES)
+                )
                 # team description
-                document.add(TextField("team_description", team_description, Field.Store.YES))
-                
+                document.add(
+                    TextField("team_description", team_description, Field.Store.YES)
+                )
 
                 logger.debug("Writting the new document.")
                 writer.addDocument(document)
@@ -273,7 +303,7 @@ def search_index(index_str_path: str, query: str):
             builder.add(min_query, BooleanClause.Occur.MUST)
 
     combined_query = builder.build()
-    hits = searcher.search(combined_query, 5)
+    hits = searcher.search(combined_query, 10)
 
     logger.info(f"Found {hits.totalHits} results.")
 
@@ -284,8 +314,9 @@ def search_index(index_str_path: str, query: str):
 
 if __name__ == "__main__":
     create_index(
-        "/Users/martin/Development/school_projects/vinf/project-2/data/index", 
+        "/Users/martin/Development/school_projects/vinf/project-2/data/index",
         "/Users/martin/Development/school_projects/vinf/project-2/data/complete_data.tsv",
     )
-    #print(parse_query_args("John Doe @current_team=red_bull ^age=20 $age=50"))
-    #search_index("/Users/martin/Development/school_projects/vinf/project-2/data/index", "Verstappen")
+    # print(parse_query_args("John Doe @current_team=red_bull ^age=20 $age=50"))
+    # search_index("/Users/martin/Development/school_projects/vinf/project-2/data/index", "Verstappen")
+

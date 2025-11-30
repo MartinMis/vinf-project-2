@@ -1,15 +1,34 @@
 from dataclasses import dataclass
 from datetime import datetime
+from pyspark.sql.types import (
+    ArrayType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+)
+
+
+@dataclass
+class ProjectConfiguration:
+    wiki_dump_path: str
+    crawled_pages_path: str
+    parsed_pages_tsv_path: str
+    complete_data_tsv_path: str
+    index_path: str
+
 
 @dataclass
 class DriverSearchResult:
+    result_score: float | None
     filename: str | None
     website_url: str | None
     driver_name: str | None
     nationality: str | None
     series: str | None
     age: int | None
-    birthday: datetime | None 
+    birthday: datetime | None
     hometown: str | None
     races_started: int | None
     races_entered: int | None
@@ -27,3 +46,47 @@ class DriverSearchResult:
     driver_description: str | None
     series_description: str | None
     team_description: str | None
+
+
+WIKI_SCHEMA = StructType(
+    [
+        StructField("title", StringType(), True),
+        StructField("ns", IntegerType(), True),
+        StructField("id", LongType(), True),
+        StructField(
+            "redirect", StructType([StructField("_title", StringType(), True)]), True
+        ),
+        StructField(
+            "revision",
+            ArrayType(
+                StructType(
+                    [
+                        StructField("id", LongType(), True),
+                        StructField("timestamp", StringType(), True),
+                        StructField(
+                            "contributor",
+                            StructType(
+                                [
+                                    StructField("username", StringType(), True),
+                                    StructField("ip", StringType(), True),
+                                ]
+                            ),
+                            True,
+                        ),
+                        StructField(
+                            "text",
+                            StructType(
+                                [
+                                    StructField("_VALUE", StringType(), True),
+                                    StructField("_bytes", LongType(), True),
+                                ]
+                            ),
+                            True,
+                        ),
+                    ]
+                )
+            ),
+            True,
+        ),
+    ]
+)
