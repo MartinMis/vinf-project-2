@@ -1,33 +1,35 @@
-import lucene
-import logging
+import lucene  # pyright: ignore
 import csv
-import os
 import re
+import os
+import shutil
 from pathlib import Path
-from java.io import File
-from java.lang import Integer, Long, Double, String
-from org.apache.lucene.analysis.standard import StandardAnalyzer
-from org.apache.lucene.document import (
+from java.io import File  # pyright: ignore
+from java.lang import Integer, Double  # pyright: ignore
+from org.apache.lucene.analysis.standard import StandardAnalyzer  # pyright: ignore
+from org.apache.lucene.document import (  # pyright: ignore
     Document,
     Field,
     TextField,
-    StringField,
     IntPoint,
     StoredField,
     DoublePoint,
 )
-from org.apache.lucene.index import IndexWriter, IndexWriterConfig
-from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.queryparser.classic import QueryParser, MultiFieldQueryParser
-from org.apache.lucene.search import (
+from org.apache.lucene.index import IndexWriter, IndexWriterConfig  # pyright: ignore
+from org.apache.lucene.store import FSDirectory  # pyright: ignore
+from org.apache.lucene.queryparser.classic import QueryParser  # pyright: ignore
+from org.apache.lucene.search import (  # pyright: ignore
     IndexSearcher,
     BooleanQuery,
     BooleanClause,
     BoostQuery,
 )
-from org.apache.lucene.index import DirectoryReader
-from java.util import HashMap
+from org.apache.lucene.index import DirectoryReader  # pyright: ignore
 from dataclasses import dataclass
+
+from .utills import DriverSearchResult, get_logger
+
+_jvm_vm_init = False
 
 
 @dataclass
@@ -35,16 +37,7 @@ class FieldsAndWeights:
     content: float = 1.0
 
 
-logger = logging.getLogger("pylucene")
-logger.setLevel(logging.DEBUG)
-
-handler = logging.StreamHandler()
-handler.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-
-logger.addHandler(handler)
+logger = get_logger("pylucene")
 
 
 def remove_tags(html: str) -> str:
@@ -79,13 +72,32 @@ def parse_query_args(query: str):
     return text, arguments, min_values, max_values
 
 
+def init_lucene_vm() -> None:
+    global _jvm_vm_init
+    if not _jvm_vm_init:
+        logger.info("Initializing lucene VM")
+        lucene.initVM()  # pyright: ignore
+        _jvm_vm_init = True
+    else:
+        logger.info("Lucene VM already initialized")
+
+
 def create_index(index_str_path: str, data_tsv_path: str):
     logger.info("Initializing the lucene VM")
-    lucene.initVM()
+    init_lucene_vm()
 
     logger.info("Setting up the index writter")
     analyzer = StandardAnalyzer()
     index_path = File(index_str_path).toPath()
+
+    if os.path.exists(index_str_path) and os.path.isdir(index_str_path):
+        logger.info("Attempting to delete the old index.")
+        try:
+            shutil.rmtree(index_str_path)
+            logger.info("Old index deleted")
+        except OSError:
+            logger.error("Error deleting the old info")
+
     index_store = FSDirectory.open(index_path)
 
     config = IndexWriterConfig(analyzer)
@@ -121,20 +133,20 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 series_description = row.get("series_description", "")
                 team_description = row.get("team_description", "")
 
-                age = 0 if age == "" else int(age)
-                races_started = 0 if races_started == "" else int(races_started)
-                races_entered = 0 if races_entered == "" else int(races_entered)
-                wins = 0 if wins == "" else int(wins)
-                podiums = 0 if podiums == "" else int(podiums)
-                pole_positions = 0 if pole_positions == "" else int(pole_positions)
-                fastest_laps = 0 if fastest_laps == "" else int(fastest_laps)
+                age = 0 if age == "" or age == "None"  else int(age)
+                races_started = 0 if races_started == "" or races_started == "None" else int(races_started)
+                races_entered = 0 if races_entered == ""or races_entered == "None"  else int(races_entered)
+                wins = 0 if wins == "" or wins == "None"  else int(wins)
+                podiums = 0 if podiums == "" or podiums == "None"  else int(podiums)
+                pole_positions = 0 if pole_positions == "" or pole_positions == "None"  else int(pole_positions)
+                fastest_laps = 0 if fastest_laps == "" or fastest_laps == "None"  else int(fastest_laps)
                 race_win_percentage = (
-                    0.0 if race_win_percentage == "" else float(race_win_percentage)
+                    0.0 if race_win_percentage == "" or race_win_percentage == "None"  else float(race_win_percentage)
                 )
                 podium_percentage = (
-                    0.0 if podium_percentage == "" else float(podium_percentage)
+                    0.0 if podium_percentage == "" or podium_percentage == "None"  else float(podium_percentage)
                 )
-                championships = 0 if championships == "" else int(championships)
+                championships = 0 if championships == "" or championships == "None"  else int(championships)
 
                 document = Document()
 
@@ -150,11 +162,10 @@ def create_index(index_str_path: str, data_tsv_path: str):
                     )
                 else:
                     logger.warning(
-                        f"No related HTML content found for driver {driver_name}!"
+                        f"No related HTML content found for driver {driver_name}"
                     )
 
                 logger.debug("Creating new document.")
-
                 # drivers name
                 document.add(TextField("driver_name", driver_name, Field.Store.YES))
                 # nationality
@@ -208,14 +219,14 @@ def create_index(index_str_path: str, data_tsv_path: str):
                 document.add(IntPoint("championships", championships))
                 document.add(StoredField("championships", championships))
                 # driver bio
-                document.add(TextField("driver_bio", driver_bio, Field.Store.YES))
+                document.add(TextField("driver_bio", driver_bio, Field.Store.NO))
                 # series description
                 document.add(
-                    TextField("series_description", series_description, Field.Store.YES)
+                    TextField("series_description", series_description, Field.Store.NO)
                 )
                 # team description
                 document.add(
-                    TextField("team_description", team_description, Field.Store.YES)
+                    TextField("team_description", team_description, Field.Store.NO)
                 )
 
                 logger.debug("Writting the new document.")
@@ -228,7 +239,7 @@ def create_index(index_str_path: str, data_tsv_path: str):
 
 
 def search_index(index_str_path: str, query: str):
-    lucene.initVM()
+    init_lucene_vm()
 
     # Open index once
     index_path = File(index_str_path).toPath()
@@ -307,16 +318,36 @@ def search_index(index_str_path: str, query: str):
 
     logger.info(f"Found {hits.totalHits} results.")
 
+    search_results: list[DriverSearchResult] = []
     for _, hit in enumerate(hits.scoreDocs, 1):
         doc = searcher.doc(hit.doc)
-        print(f"Driver Name: {doc.get('driver_name')}")
-
-
-if __name__ == "__main__":
-    create_index(
-        "/Users/martin/Development/school_projects/vinf/project-2/data/index",
-        "/Users/martin/Development/school_projects/vinf/project-2/data/complete_data.tsv",
-    )
-    # print(parse_query_args("John Doe @current_team=red_bull ^age=20 $age=50"))
-    # search_index("/Users/martin/Development/school_projects/vinf/project-2/data/index", "Verstappen")
-
+        search_results.append(
+            DriverSearchResult(
+                result_score=hit.score,
+                filename=doc.get("filename"),
+                website_url=doc.get("website_url"),
+                driver_name=doc.get("driver_name"),
+                nationality=doc.get("nationality"),
+                series=doc.get("series"),
+                age=doc.get("age"),
+                birthday=doc.get("birthday"),
+                hometown=doc.get("hometown"),
+                races_started=doc.get("races_started"),
+                races_entered=doc.get("races_entered"),
+                wins=doc.get("wins"),
+                podiums=doc.get("podiums"),
+                pole_positions=doc.get("pole_positions"),
+                fastest_laps=doc.get("fastest_laps"),
+                race_win_percentage=doc.get("race_win_percentage"),
+                podium_percentage=doc.get("podium_percentage"),
+                driverdb_score=doc.get("driverdb_score"),
+                current_team=doc.get("current_team"),
+                all_teams=doc.get("all_teams"),
+                car_number=doc.get("car_number"),
+                championships=doc.get("championships"),
+                driver_description=doc.get("driver_bio"),
+                series_description=doc.get("series_description"),
+                team_description=doc.get("team_description"),
+            )
+        )
+    return search_results

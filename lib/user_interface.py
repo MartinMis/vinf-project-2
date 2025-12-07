@@ -1,6 +1,6 @@
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Prompt
 from rich.table import Table
 from rich.text import Text
 
@@ -33,7 +33,7 @@ def formated_value(value: str | int | float | datetime | list[str] | None):
     if value is None:
         return Text("Not specified", style="red")
     elif isinstance(value, str):
-        return Text(value)
+        return Text(clean_up_text(value))
     elif isinstance(value, int) or isinstance(value, float):
         return Text(str(value))
     elif isinstance(value, datetime):
@@ -42,7 +42,7 @@ def formated_value(value: str | int | float | datetime | list[str] | None):
         for elem in value:
             if not isinstance(elem, str):
                 raise AttributeError("List should contain only strings!")
-        return Text(", ".join(value))
+        return Text(clean_up_text(", ".join(value)))
 
 
 def create_driver_table_long(search_result: DriverSearchResult) -> Table:
@@ -88,6 +88,62 @@ def create_driver_table_long(search_result: DriverSearchResult) -> Table:
     return table
 
 
+def create_driver_table_wide(results: list[DriverSearchResult]):
+    table = Table(
+        title="Search results",
+        show_lines=True,
+    )
+    table.add_column("Score")
+    table.add_column("Name")
+    table.add_column("Nationality")
+    table.add_column("Series")
+    table.add_column("Age")
+    table.add_column("Birthday")
+    table.add_column("Hometown")
+    table.add_column("Races started")
+    table.add_column("Races entered")
+    table.add_column("wins")
+    table.add_column("Podiums")
+    table.add_column("Pole positions")
+    table.add_column("Fastest laps")
+    table.add_column("Race win percentage")
+    table.add_column("Podium percentage")
+    table.add_column("DriverDB score")
+    table.add_column("Current team")
+    table.add_column("All teams")
+    table.add_column("Car number")
+    table.add_column("Championship wins")
+
+    for result in results:
+        table.add_row(
+            formated_value(result.result_score),
+            formated_value(result.driver_name),
+            formated_value(result.nationality),
+            formated_value(result.series),
+            formated_value(result.age),
+            formated_value(result.birthday),
+            formated_value(result.hometown),
+            formated_value(result.races_started),
+            formated_value(result.races_entered),
+            formated_value(result.wins),
+            formated_value(result.podiums),
+            formated_value(result.pole_positions),
+            formated_value(result.fastest_laps),
+            formated_value(result.race_win_percentage),
+            formated_value(result.podium_percentage),
+            formated_value(result.driverdb_score),
+            formated_value(result.current_team),
+            formated_value(result.all_teams),
+            formated_value(result.car_number),
+            formated_value(result.championships),
+        )
+    return table
+
+
+def clean_up_text(text: str) -> str:
+    return text.replace("[", "").replace("]", "").replace("'''", "")
+
+
 def print_results_list(results_list: list[DriverSearchResult]):
     # Guard statement for variable type
     if not isinstance(results_list, list):
@@ -97,39 +153,4 @@ def print_results_list(results_list: list[DriverSearchResult]):
         if not isinstance(result, DriverSearchResult):
             raise AttributeError("List can only contain DriverSearchResults!")
 
-    for result in results_list:
-        console.print(create_driver_table_long(result))
-
-
-if __name__ == "__main__":
-    print_header()
-    print_mode_menu()
-
-    test_driver = DriverSearchResult(
-        filename="/root/file.html",
-        result_score=45.42,
-        website_url="www.driverdb.com",
-        driver_name="Test Testovski",
-        nationality="Bhutanese",
-        series="Ultimate racing truck",
-        age=589,
-        birthday=datetime(1873, 12, 12),
-        hometown="Prievidza",
-        races_entered=5,
-        races_started=6,
-        wins=7,
-        podiums=8,
-        pole_positions=99,
-        fastest_laps=6,
-        race_win_percentage=128.5,
-        podium_percentage=999.9,
-        driverdb_score=5000,
-        current_team=None,
-        all_teams=["Very Fast Racing", "Mildly Slow Racing", "Ferrari"],
-        car_number=1,
-        championships=6,
-        driver_description="Just a chill guy",
-        series_description="Car go brrr",
-        team_description="Such win much wow",
-    )
-    print_results_list([test_driver, test_driver])
+    console.print(create_driver_table_wide(results_list))

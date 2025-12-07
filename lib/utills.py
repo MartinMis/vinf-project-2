@@ -1,6 +1,8 @@
+import logging
+from rich.logging import RichHandler
 from dataclasses import dataclass
 from datetime import datetime
-from pyspark.sql.types import (
+from pyspark.sql.types import (  # pyright: ignore
     ArrayType,
     IntegerType,
     LongType,
@@ -8,6 +10,14 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
+
+logging.basicConfig(
+    level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+)
+
+
+def get_logger(logger_name: str) -> logging.Logger:
+    return logging.getLogger(logger_name)
 
 
 @dataclass
@@ -54,7 +64,8 @@ WIKI_SCHEMA = StructType(
         StructField("ns", IntegerType(), True),
         StructField("id", LongType(), True),
         StructField(
-            "redirect", StructType([StructField("_title", StringType(), True)]), True
+            "redirect", StructType(
+                [StructField("_title", StringType(), True)]), True
         ),
         StructField(
             "revision",
@@ -67,7 +78,8 @@ WIKI_SCHEMA = StructType(
                             "contributor",
                             StructType(
                                 [
-                                    StructField("username", StringType(), True),
+                                    StructField(
+                                        "username", StringType(), True),
                                     StructField("ip", StringType(), True),
                                 ]
                             ),
