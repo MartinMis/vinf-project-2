@@ -155,7 +155,7 @@ def parse_wiki(configuration: ProjectConfiguration):
     series_info = out.join(series, out.title == series.series).select(
         col("title"),
         regexp_extract(
-            col("text"), r"(^'''[^\[].*?)\n", 1).alias("series_description"),
+            col("text"), r"('''.*?)\n", 1).alias("series_description"),
     )
 
     merged_dataframe = driverdb_dataframe.join(
@@ -208,7 +208,7 @@ def parse_wiki(configuration: ProjectConfiguration):
     ).select(out["*"])
 
     team_info = team_info.withColumn(
-        "team_description", regexp_extract(col("text"), r"(^'''[^\[].*?)\n", 1)
+        "team_description", regexp_extract(col("text"), r"('''.*?)\n", 1)
     )
 
     merged_dataframe = merged_dataframe.join(
